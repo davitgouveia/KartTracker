@@ -32,22 +32,25 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.karttracker.ui.theme.Typography
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+
 @Preview
 @Composable
-fun HomePage(){
+fun HomePage(navController: NavController){
     val context = LocalContext.current
-    Column {
+    Column (modifier = Modifier.fillMaxSize()) {
         MainTitle("Kart Tracker")
         NearestTrackCard()
-        Box ( contentAlignment = Alignment.BottomEnd  )  {
+        Box ( modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center  )  {
             ElevatedButton(
                 onClick = {
-                    Toast.makeText(context, "Click", Toast.LENGTH_SHORT).show()
+                    navController.navigate("recordPage")
                 },
                 modifier = Modifier.width(150.dp).height(150.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
