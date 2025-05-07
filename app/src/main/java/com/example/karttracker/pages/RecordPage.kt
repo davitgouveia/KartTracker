@@ -13,12 +13,12 @@ import androidx.navigation.NavController
 import com.example.karttracker.components.GForceMeter
 
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-
 @Composable
 fun Speedometer(viewModel: SpeedViewModel = viewModel()) {
     val speed = viewModel.speed.collectAsState()
@@ -35,7 +35,9 @@ fun Speedometer(viewModel: SpeedViewModel = viewModel()) {
 @Composable
 fun RecordPage(navController: NavController, modifier: Modifier = Modifier){
     val speedViewModel: SpeedViewModel = viewModel()
-    speedViewModel.startLocationUpdates()
+    LaunchedEffect(Unit) {
+        speedViewModel.startLocationUpdates()
+    }
     Column (
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -45,3 +47,4 @@ fun RecordPage(navController: NavController, modifier: Modifier = Modifier){
         GForceMeter()
     }
 }
+
