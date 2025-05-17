@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-03-25T16:23:00.157903400Z">
+        <DropdownSelection timestamp="2025-05-17T02:56:36.659820100Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=RX8N702V6JB" />
+              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\davit\.android\avd\Medium_Phone_API_35.avd" />
             </handle>
           </Target>
         </DropdownSelection>

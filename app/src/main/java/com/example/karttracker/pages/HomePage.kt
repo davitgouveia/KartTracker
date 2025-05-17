@@ -39,7 +39,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 
-@Preview
 @Composable
 fun HomePage(navController: NavController){
     val context = LocalContext.current
@@ -50,7 +49,7 @@ fun HomePage(navController: NavController){
             contentAlignment = Alignment.Center  )  {
             ElevatedButton(
                 onClick = {
-                    navController.navigate("recordPage")
+                    navController.navigate("map")
                 },
                 modifier = Modifier.width(150.dp).height(150.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
