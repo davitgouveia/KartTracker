@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +63,12 @@ fun RecordPage(
         modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Button(onClick = {
+            lapViewModel.stopLocationUpdates()
+            // Trigger GPX data generation and saving here
+        }) {
+            Text("Stop Recording")
+        }
         Text(
             text = "Elapsed Time: $elapsedTime",
             fontSize = 24.sp,
