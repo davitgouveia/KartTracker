@@ -80,6 +80,19 @@ class LapViewModel @Inject constructor(
         }
     }
 
+
+    private val _lastLap = MutableStateFlow("00:00.00")
+    val lastLap: StateFlow<String> = _lastLap
+
+    private val _bestLap = MutableStateFlow("00:00.00")
+    val bestLap: StateFlow<String> = _bestLap
+
+    private val _lapCount = MutableStateFlow(0);
+    val lapCount: StateFlow<Int> = _lapCount
+
+    private val _lapDelta = MutableStateFlow(0.0)
+    val lapDelta: MutableStateFlow<Double> = _lapDelta
+
     init {
         startTime = System.currentTimeMillis()
     }
