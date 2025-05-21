@@ -1,11 +1,14 @@
 package com.example.karttracker.components
 
+import android.content.res.Configuration
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.material3.Text
@@ -14,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -23,6 +27,9 @@ import kotlin.math.sqrt
 @Composable
 fun GForceMeter() {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     val sensorManager = remember { context.getSystemService(SensorManager::class.java) }
     var gForce by remember { mutableStateOf(Offset(0f, 0f)) }
 
@@ -43,8 +50,21 @@ fun GForceMeter() {
                     linearAcceleration[1] = event.values[1] - gravity[1]
                     linearAcceleration[2] = event.values[2] - gravity[2]
 
-                    val gx = linearAcceleration[0] / 9.81f
-                    val gy = linearAcceleration[2] / 9.81f // agora usamos Y real aqui
+                    // Normalized acceleration
+                    val rawX = linearAcceleration[0] / 9.81f
+                    val rawY = linearAcceleration[1] / 9.81f
+                    val rawZ = linearAcceleration[2] / 9.81f
+
+                    // Adjust axes based on orientation
+                    val gx: Float
+                    val gy: Float
+                    if (isLandscape) {
+                        gx = rawY  // phone's Y axis is now horizontal
+                        gy = rawZ  // vertical still Z
+                    } else {
+                        gx = rawX
+                        gy = rawZ
+                    }
 
                     gForce = Offset(gx, gy)
                 }
@@ -65,14 +85,14 @@ fun GForceMeter() {
         verticalArrangement = Arrangement.Center
     ) {
         Box(
-            modifier = Modifier.size(300.dp),
+            modifier = Modifier
+                .size(150.dp), // was 300.dp
             contentAlignment = Alignment.Center
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val center = Offset(size.width / 2, size.height / 2)
-                val gPerPixel = size.width / 2 / 3f // 1G por círculo
+                val gPerPixel = size.width / 2 / 3f
 
-                // Desenha círculos concêntricos
                 for (i in 1..3) {
                     drawCircle(
                         color = Color.Gray.copy(alpha = 0.3f),
@@ -82,7 +102,6 @@ fun GForceMeter() {
                     )
                 }
 
-                // Vetor único representando direção e intensidade
                 val ballRadius = 10.dp.toPx()
                 val ballOffset = Offset(
                     center.x + (gForce.x * gPerPixel),
@@ -105,10 +124,10 @@ fun GForceMeter() {
             text = "%.2f".format(magnitude),
             fontSize = 52.sp,
             fontWeight = FontWeight.Bold,
-        )
+        )/*
         Text(
-            text = "X: %.2f  Y: %.2f".format( gForce.x, gForce.y),
+            text = "X: %.2f  Y: %.2f".format(gForce.x, gForce.y),
             style = MaterialTheme.typography.bodyLarge,
-        )
+        )*/
     }
 }

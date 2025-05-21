@@ -81,6 +81,10 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0") // Use the latest stable version
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0") // For Android-specific dispatchers
+
+
     val nav_version = "2.8.9"
     // Jetpack Compose integration
     implementation("androidx.navigation:navigation-compose:$nav_version")

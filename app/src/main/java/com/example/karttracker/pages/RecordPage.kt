@@ -68,7 +68,6 @@ fun RecordPage(
     lapViewModel: LapViewModel = hiltViewModel()
 ) {
 
-    val lapTimes = lapViewModel.lapTimes
     val elapsedTime by lapViewModel.elapsedTime.collectAsState()
     val speed by lapViewModel.speed.collectAsState()
     val currentLapTime by lapViewModel.currentLapTime.collectAsState()
@@ -108,11 +107,11 @@ fun RecordPage(
             LabelValue("Last lap", lastLap)
             LabelValue("Current", currentLapTime)
             LabelValue("LAP", lapCount.toString())
-            LabelValue(
+            /*LabelValue(
                 "DELTA - Best lap",
                 lapDelta.formatDelta(),
                 color = if (lapDelta < 0) Color.Green else Color.Red
-            )
+            )*/
         }
 
         // Circle indicator and STOP button on the right
