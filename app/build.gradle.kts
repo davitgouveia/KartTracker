@@ -84,7 +84,6 @@ dependencies {
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0") // Use the latest stable version
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0") // For Android-specific dispatchers
 
-
     val nav_version = "2.8.9"
     // Jetpack Compose integration
     implementation("androidx.navigation:navigation-compose:$nav_version")
@@ -98,6 +97,10 @@ dependencies {
 
     // Testing Navigation
     androidTestImplementation("androidx.navigation:navigation-testing:$nav_version")
+
+    val room_version = "2.7.1"
+    ksp("androidx.room:room-compiler:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
 
     // JSON serialization library, works with the Kotlin serialization plugin
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
