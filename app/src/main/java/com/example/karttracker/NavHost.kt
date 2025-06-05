@@ -1,8 +1,11 @@
 package com.example.karttracker
 
 
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import com.example.karttracker.pages.RecordPage
 import androidx.navigation.compose.composable
@@ -11,6 +14,7 @@ import com.example.karttracker.pages.LapTrackerMapScreen
 import com.example.karttracker.pages.RADIUS_ARG
 import com.example.karttracker.pages.START_FINISH_LAT_ARG
 import com.example.karttracker.pages.START_FINISH_LNG_ARG
+import com.example.karttracker.pages.SessionSummaryScreen
 
 
 @Composable
@@ -27,6 +31,18 @@ fun AppNavHost(navController: NavHostController) {
             )
         ) { backStackEntry ->
             RecordPage(navController = navController)
+        }
+        composable(
+            route = "summary_route/{sessionId}",
+            arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getLong("sessionId")
+            if (sessionId != null) {
+                SessionSummaryScreen(sessionId = sessionId, navController = navController)
+            } else {
+                // Handle error: sessionId not found, maybe show a message or navigate back
+                Text("Error: Session ID not found", color = Color.Red)
+            }
         }
     }
 }

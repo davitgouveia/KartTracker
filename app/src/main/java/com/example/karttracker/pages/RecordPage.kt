@@ -76,6 +76,17 @@ fun RecordPage(
     val lapCount by lapViewModel.lapCount.collectAsState()
     val lapDelta by lapViewModel.lapDelta.collectAsState()
 
+    // Observe the session completion event
+    LaunchedEffect(Unit) {
+        lapViewModel.sessionCompleted.collect { sessionId ->
+            // Navigate to the summary screen, passing the sessionId
+            navController.navigate("summary_route/$sessionId") {
+                // Optional: Pop back stack to prevent navigating back to the recording page
+                popUpTo("record_route") { inclusive = true }
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         lapViewModel.startLocationUpdates()
     }
@@ -126,7 +137,9 @@ fun RecordPage(
             }
 
             Button(
-                onClick = { navController.popBackStack() },
+                onClick = {
+                    lapViewModel.stopLocationUpdates()
+                },
                 colors = ButtonDefaults.buttonColors(containerColor = Color.LightGray)
             ) {
                 Text("STOP", color = Color.Black)

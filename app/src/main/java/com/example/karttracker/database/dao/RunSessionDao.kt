@@ -20,5 +20,5 @@ interface RunSessionDao {
     fun getAllRunSessions(): Flow<List<RunSessionEntity>>
 
     @Query("SELECT * FROM run_sessions WHERE id = :sessionId")
-    suspend fun getRunSessionById(sessionId: Long): RunSessionEntity?
+    fun getRunSessionById(sessionId: Long): Flow<RunSessionEntity?>
 }

@@ -20,4 +20,18 @@ interface LocationPointDao {
 
     @Query("SELECT * FROM location_points WHERE lapId = :lapId ORDER BY timestamp ASC")
     fun getLocationPointsForLap(lapId: Long): Flow<List<LocationPointEntity>>
+
+    @Query("""
+        UPDATE location_points
+        SET lapId = :lapId
+        WHERE sessionId = :sessionId
+        AND timestamp >= :startTime
+        AND timestamp <= :endTime
+    """)
+    suspend fun updateLapIdForPointsInTimeRange(
+        sessionId: Long,
+        lapId: Long,
+        startTime: Long,
+        endTime: Long
+    )
 }
