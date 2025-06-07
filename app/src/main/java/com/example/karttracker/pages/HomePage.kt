@@ -33,6 +33,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.karttracker.components.DefaultLayout
 import com.example.karttracker.ui.theme.Typography
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -41,30 +42,32 @@ import java.util.Locale
 
 @Composable
 fun HomePage(navController: NavController){
-    val context = LocalContext.current
-    Column (modifier = Modifier.fillMaxSize()) {
-        MainTitle("Kart Tracker")
-        NearestTrackCard()
-        Box ( modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center  )  {
-            ElevatedButton(
-                onClick = {
-                    navController.navigate("map")
-                },
-                modifier = Modifier.width(150.dp).height(150.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Text(
-                    text = "RACE",
-                    fontSize = 35.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+    MaterialTheme {
+        DefaultLayout(title = "Kart Tracker") {
+            Column (modifier = Modifier.fillMaxSize()) {
+                NearestTrackCard()
+                Box ( modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center  )  {
+                    ElevatedButton(
+                        onClick = {
+                            navController.navigate("map")
+                        },
+                        modifier = Modifier.width(150.dp).height(150.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            text = "RACE",
+                            fontSize = 35.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
             }
         }
-
     }
 }
 

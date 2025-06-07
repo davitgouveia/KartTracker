@@ -254,6 +254,7 @@ class LapViewModel @Inject constructor(
         viewModelScope.launch {
             // Create a new RunSession when starting
             val newSession = RunSessionEntity(
+                name = "",
                 startTimeMillis = System.currentTimeMillis(),
                 endTimeMillis = 0L, // Will be updated on stop
                 totalDurationMillis = 0L // Will be updated on stop

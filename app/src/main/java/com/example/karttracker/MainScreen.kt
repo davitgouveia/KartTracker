@@ -64,7 +64,7 @@ fun ContentScreen(modifier: Modifier = Modifier, selectedIndex: Int, navControll
     Box(modifier = modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 12.dp)) {
         when (selectedIndex) {
             0 -> HomePage(navController)
-            1 -> HistoryPage()
+            1 -> HistoryPage(navController)
             2 -> SettingsPage()
         }
     }

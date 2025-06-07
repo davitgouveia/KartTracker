@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.example.karttracker.database.dao.LapDao
 import com.example.karttracker.database.dao.LocationPointDao
 import com.example.karttracker.database.dao.RunSessionDao
+import com.example.karttracker.database.migrations.MIGRATION_1_2
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -20,7 +21,9 @@ object DatabaseModule {
             appContext,
             AppDatabase::class.java,
             "kart_tracker_db"
-        ).build()
+        )
+            .addMigrations(MIGRATION_1_2)
+            .build()
     }
 
     @Provides
