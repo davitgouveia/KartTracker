@@ -33,5 +33,5 @@ interface LocationPointDao {
         lapId: Long,
         startTime: Long,
         endTime: Long
-    )
+    ): Int
 }
