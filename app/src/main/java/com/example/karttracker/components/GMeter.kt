@@ -35,32 +35,42 @@ fun GForceMeter() {
 
     DisposableEffect(Unit) {
         val sensor = sensorManager?.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
+
+        // Moving Average Filter parameters
+        val windowSize = 10 // Number of samples to average. Experiment with this value.
+        val xBuffer = mutableListOf<Float>()
+        val yBuffer = mutableListOf<Float>()
+        val zBuffer = mutableListOf<Float>()
+
         val listener = object : SensorEventListener {
-            var gravity = FloatArray(3)
-            var linearAcceleration = FloatArray(3)
             override fun onSensorChanged(event: SensorEvent?) {
                 event?.let {
-                    val alpha = 0.8f
+                    // Add current values to buffers
+                    xBuffer.add(event.values[0])
+                    yBuffer.add(event.values[1])
+                    zBuffer.add(event.values[2])
 
-                    gravity[0] = alpha * gravity[0] + (1 - alpha) * event.values[0]
-                    gravity[1] = alpha * gravity[1] + (1 - alpha) * event.values[1]
-                    gravity[2] = alpha * gravity[2] + (1 - alpha) * event.values[2]
+                    // Keep buffer size within windowSize
+                    if (xBuffer.size > windowSize) xBuffer.removeAt(0)
+                    if (yBuffer.size > windowSize) yBuffer.removeAt(0)
+                    if (zBuffer.size > windowSize) zBuffer.removeAt(0)
 
-                    linearAcceleration[0] = event.values[0] - gravity[0]
-                    linearAcceleration[1] = event.values[1] - gravity[1]
-                    linearAcceleration[2] = event.values[2] - gravity[2]
+                    // Calculate average
+                    val avgX = if (xBuffer.isNotEmpty()) xBuffer.average().toFloat() else 0f
+                    val avgY = if (yBuffer.isNotEmpty()) yBuffer.average().toFloat() else 0f
+                    val avgZ = if (zBuffer.isNotEmpty()) zBuffer.average().toFloat() else 0f
 
                     // Normalized acceleration
-                    val rawX = linearAcceleration[0] / 9.81f
-                    val rawY = linearAcceleration[1] / 9.81f
-                    val rawZ = linearAcceleration[2] / 9.81f
+                    val rawX = avgX / 9.81f
+                    val rawY = avgY / 9.81f
+                    val rawZ = avgZ / 9.81f
 
                     // Adjust axes based on orientation
                     val gx: Float
                     val gy: Float
                     if (isLandscape) {
-                        gx = rawY  // phone's Y axis is now horizontal
-                        gy = rawZ  // vertical still Z
+                        gx = rawY
+                        gy = rawZ
                     } else {
                         gx = rawX
                         gy = rawZ
@@ -73,7 +83,9 @@ fun GForceMeter() {
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
 
-        sensorManager?.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI)
+        sensorManager?.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_GAME) // SENSOR_DELAY_GAME provides a good balance
+        // You might also try SENSOR_DELAY_FASTEST if you need more samples for averaging,
+        // but be mindful of battery consumption.
 
         onDispose {
             sensorManager?.unregisterListener(listener)
@@ -121,7 +133,7 @@ fun GForceMeter() {
         val magnitude = sqrt(gForce.x * gForce.x + gForce.y * gForce.y)
 
         Text(
-            text = "%.2f".format(magnitude),
+            text = "%.1f".format(magnitude),
             fontSize = 52.sp,
             fontWeight = FontWeight.Bold,
         )/*

@@ -1,6 +1,7 @@
 package com.example.karttracker.pages
 
 import android.Manifest
+import android.location.Location
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,13 +29,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.Circle
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapType
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.rememberCameraPositionState
+import kotlinx.coroutines.launch
 
 const val START_FINISH_LAT_ARG = "startFinishLat"
 const val START_FINISH_LNG_ARG = "startFinishLng"
@@ -42,7 +51,21 @@ const val RADIUS_ARG = "radius"
 @Composable
 fun LapTrackerMapScreen(navController: NavHostController) {
     val context = LocalContext.current
-    val mapProperties = remember { MapProperties(isMyLocationEnabled = true) }
+    val scope = rememberCoroutineScope()
+
+    val fusedLocationClient: FusedLocationProviderClient = remember {
+        LocationServices.getFusedLocationProviderClient(context)
+    }
+
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(LatLng(0.0, 0.0), 10f) // Default initial position
+    }
+
+    val mapProperties = remember {
+        MapProperties(isMyLocationEnabled = true,
+        mapType = MapType.SATELLITE)
+    }
+
     val uiSettings = remember { MapUiSettings(myLocationButtonEnabled = true) }
 
     var markerPosition by remember { mutableStateOf<LatLng?>(null) }
@@ -52,7 +75,17 @@ fun LapTrackerMapScreen(navController: NavHostController) {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions.all { it.value }) {
-            // Permission granted, no need to do anything here, the map will handle it
+            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+                location?.let {
+                    val currentLatLng = LatLng(it.latitude, it.longitude)
+                    scope.launch {
+                        cameraPositionState.animate(
+                            update = CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f),
+                            durationMs = 1000
+                        )
+                    }
+                }
+            }
         } else {
             Toast.makeText(context, "Location permissions are required", Toast.LENGTH_SHORT).show()
         }
@@ -65,12 +98,25 @@ fun LapTrackerMapScreen(navController: NavHostController) {
         )
         if (requiredPermissions.any { ContextCompat.checkSelfPermission(context, it) != android.content.pm.PackageManager.PERMISSION_GRANTED }) {
             requestPermissionLauncher.launch(requiredPermissions)
+        } else {
+            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+                location?.let {
+                    val currentLatLng = LatLng(it.latitude, it.longitude)
+                    scope.launch {
+                        cameraPositionState.animate(
+                            update = CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f),
+                            durationMs = 1000
+                        )
+                    }
+                }
+            }
         }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
+            cameraPositionState = cameraPositionState,
             properties = mapProperties,
             uiSettings = uiSettings,
             onMapClick = { latLng -> markerPosition = latLng }
@@ -85,7 +131,7 @@ fun LapTrackerMapScreen(navController: NavHostController) {
                     radius = radiusMeters.toDouble(),
                     strokeColor = Color.Red,
                     strokeWidth = 4f,
-                    fillColor = Color(0x44FF0000) // semi-transparent red
+                    fillColor = Color(0x44FF0000)
                 )
             }
         }

@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -65,6 +66,7 @@ fun SessionSummaryScreen(
 ) {
     LaunchedEffect(sessionId) {
         summaryViewModel.setSessionId(sessionId)
+        Log.d("SummaryScreen", "Session ID set in LaunchedEffect: $sessionId")
     }
 
     val runSession by summaryViewModel.getRunSession(sessionId).collectAsState(initial = null)
@@ -72,9 +74,26 @@ fun SessionSummaryScreen(
     val fastestLapId by summaryViewModel.currentFastestLapId.collectAsState(initial = null)
     val locationPoints by summaryViewModel.getLocationPointsForSession(sessionId) // For overall session path
         .collectAsState(initial = emptyList())
-    Log.d("points","${locationPoints}")
+
     val selectedLapIds by summaryViewModel.selectedLapIds.collectAsState()
     val selectedLapsWithPoints by summaryViewModel.selectedLapsWithPoints.collectAsState()
+
+    LaunchedEffect(laps, fastestLapId, locationPoints, selectedLapIds, selectedLapsWithPoints) {
+        Log.d("SummaryScreenData", "--- UI Data Update ---")
+        Log.d("SummaryScreenData", "Total Laps: ${laps.size}")
+        laps.forEach { lap ->
+            Log.d("SummaryScreenData", "  Lap ${lap.lapNumber} (ID: ${lap.id}), Duration: ${lap.formattedTime}")
+        }
+        Log.d("SummaryScreenData", "Fastest Overall Lap ID: $fastestLapId")
+        Log.d("SummaryScreenData", "Overall Session Location Points: ${locationPoints.size}")
+
+        Log.d("SummaryScreenData", "Selected Lap IDs: $selectedLapIds")
+        Log.d("SummaryScreenData", "Selected Laps With Points (size): ${selectedLapsWithPoints.size}")
+        selectedLapsWithPoints.forEach { selectedLapData ->
+            Log.d("SummaryScreenData", "  Selected Lap ${selectedLapData.lap.lapNumber} (ID: ${selectedLapData.lap.id}): ${selectedLapData.locationPoints.size} points. Is Fastest of Selected: ${selectedLapData.isFastestOfSelected}")
+        }
+        Log.d("SummaryScreenData", "----------------------")
+    }
 
     var sessionName by remember { mutableStateOf("") }
     var isEditingName by remember { mutableStateOf(false) }
@@ -170,7 +189,7 @@ fun SessionSummaryScreen(
                     )
 
 
-                    if (laps.isNotEmpty() && selectedLapsWithPoints.size <= 2) { // Max 2 laps for comparison
+                    if (laps.isNotEmpty() && selectedLapsWithPoints.size <= 2) {
                         val mapPoints = if (selectedLapsWithPoints.isNotEmpty()) {
                             selectedLapsWithPoints.flatMap { it.locationPoints }
                         } else {
@@ -178,37 +197,59 @@ fun SessionSummaryScreen(
                         }
 
                         if (mapPoints.isNotEmpty()) {
+                            Log.d("MapRender", "Map is being rendered with ${mapPoints.size} points.")
                             val initialLatLng = LatLng(
                                 mapPoints.first().latitude,
                                 mapPoints.first().longitude
                             )
-                            GoogleMap(
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(200.dp)
-                                    .clip(RoundedCornerShape(8.dp)),
-                                cameraPositionState = rememberCameraPositionState {
-                                    position = CameraPosition.fromLatLngZoom(initialLatLng, 15f)
-                                }
+                                    .clip(RoundedCornerShape(8.dp)) // Clip the whole box, not just the map
                             ) {
-                                if (selectedLapsWithPoints.size == 2) {
-                                    // Plot two selected laps with different colors and fastest in purple
-                                    selectedLapsWithPoints.forEachIndexed { index, selectedLapData ->
-                                        val polylineColor = when {
-                                            selectedLapData.isFastestOfSelected -> FastestLapPurple
-                                            index == 0 -> Lap1Color
-                                            index == 1 -> Lap2Color
-                                            else -> Color.Gray // Fallback
+                                GoogleMap(
+                                    modifier = Modifier.fillMaxSize(), // Make the map fill the Box
+                                    cameraPositionState = rememberCameraPositionState {
+                                        position = CameraPosition.fromLatLngZoom(initialLatLng, 15f)
+                                    }
+                                ) {
+                                    // ONLY place map elements (Polyline, Marker, etc.) here
+                                    if (selectedLapsWithPoints.size == 2) {
+                                        selectedLapsWithPoints.forEachIndexed { index, selectedLapData ->
+                                            val polylineColor = when {
+                                                selectedLapData.isFastestOfSelected -> FastestLapPurple
+                                                index == 0 -> Lap1Color
+                                                index == 1 -> Lap2Color
+                                                else -> Color.Gray
+                                            }
+                                            Polyline(
+                                                points = selectedLapData.locationPoints.map { LatLng(it.latitude, it.longitude) },
+                                                color = polylineColor,
+                                                width = 8f
+                                            )
                                         }
+                                    } else if (selectedLapsWithPoints.size == 1) {
+                                        val selectedLapData = selectedLapsWithPoints.first()
                                         Polyline(
                                             points = selectedLapData.locationPoints.map { LatLng(it.latitude, it.longitude) },
-                                            color = polylineColor,
-                                            width = 8f // Thicker lines for visibility
+                                            color = Lap1Color,
+                                            width = 8f
+                                        )
+                                    } else {
+                                        Polyline(
+                                            points = locationPoints.map { LatLng(it.latitude, it.longitude) },
+                                            color = Color.DarkGray,
+                                            width = 6f
                                         )
                                     }
-                                    // Legend for lap colors
+                                }
+
+                                // Now, place your UI elements (legends, text) OVER the map within the Box
+                                if (selectedLapsWithPoints.size == 2) {
                                     Column(
                                         modifier = Modifier
+                                            .align(Alignment.TopStart) // Align to top-start of the Box
                                             .padding(8.dp)
                                             .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
                                             .padding(4.dp)
@@ -228,33 +269,21 @@ fun SessionSummaryScreen(
                                         }
                                     }
                                 } else if (selectedLapsWithPoints.size == 1) {
-                                    // Plot single selected lap
                                     val selectedLapData = selectedLapsWithPoints.first()
-                                    Polyline(
-                                        points = selectedLapData.locationPoints.map { LatLng(it.latitude, it.longitude) },
-                                        color = Lap1Color,
-                                        width = 8f
-                                    )
                                     Text(
                                         text = "Lap ${selectedLapData.lap.lapNumber}: ${formatTime(selectedLapData.lap.durationMillis)}",
                                         color = Lap1Color,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier
+                                            .align(Alignment.TopStart) // Align to top-start of the Box
                                             .padding(8.dp)
                                             .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
                                             .padding(4.dp)
                                     )
                                 }
-                                else {
-                                    // Plot overall session path if no laps selected
-                                    Polyline(
-                                        points = locationPoints.map { LatLng(it.latitude, it.longitude) },
-                                        color = Color.DarkGray,
-                                        width = 6f
-                                    )
-                                }
                             }
                         } else {
+                            Log.d("MapRender", "Map is NOT being rendered. mapPoints is empty.")
                             Text("No location data available for this session or selected laps.",
                                 modifier = Modifier.padding(top = 8.dp))
                         }

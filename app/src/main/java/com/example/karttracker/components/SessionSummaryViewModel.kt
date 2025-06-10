@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flatMapLatest
@@ -127,56 +128,71 @@ class SessionSummaryViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val selectedLapsWithPoints: StateFlow<List<SelectedLapData>> =
+        // First, combine the selected IDs and all laps to get the LapEntity objects
         combine(
             _selectedLapIds,
-            currentSessionLaps // Ensure we have access to the full list of laps
+            currentSessionLaps
         ) { selectedIds, allLaps ->
-            Log.d("LapPointsDebug", "Combine triggered for selected laps. Selected IDs: $selectedIds")
-
+            Log.d("LapPointsDebug", "Combine (Phase 1) triggered. Selected IDs: $selectedIds")
             if (selectedIds.isEmpty()) {
-                Log.d("LapPointsDebug", "No laps selected, returning empty list.")
-                emptyList()
+                emptyList() // Return empty list of LapEntities if nothing selected
             } else {
-                val selectedLapEntities = allLaps.filter { it.id in selectedIds }
-                Log.d("LapPointsDebug", "Filtered selected lap entities: ${selectedLapEntities.map { "Lap ${it.lapNumber} (ID: ${it.id})" }}")
-
-                val fastestOfSelectedDuration = selectedLapEntities.minOfOrNull { it.durationMillis }
-                val fastestOfSelectedLapId = selectedLapEntities.firstOrNull { it.durationMillis == fastestOfSelectedDuration }?.id
-
-                // This is the critical part for debugging getLocationPointsForLap
-                val results = selectedLapEntities.map { lapEntity ->
-                    Log.d("LapPointsDebug", "Attempting to get points for Lap ${lapEntity.lapNumber} (ID: ${lapEntity.id})")
-
-                    // Step 1: Observe the Flow directly (you can add a Log.d in a .onEach() here if you want to see emissions)
-                    val pointsFlow = locationPointDao.getLocationPointsForLap(lapEntity.id)
-                        .flowOn(Dispatchers.IO)
-                        .conflate()
-                        .onEach { fetchedPoints -> // This will log every time the DAO Flow emits
-                            Log.d("LapPointsDebug", "DAO Flow emitted for Lap ${lapEntity.lapNumber} (ID: ${lapEntity.id}): ${fetchedPoints.size} points.")
-                        }
-
-                    // Step 2: Convert to StateFlow and get its current value
-                    val points = pointsFlow.stateIn(
-                        viewModelScope,
-                        SharingStarted.WhileSubscribed(5000), // Ensure it's active
-                        emptyList()
-                    ).value // <--- Get the actual list of points here
-
-                    Log.d("LapPointsDebug", "StateFlow.value for Lap ${lapEntity.lapNumber} (ID: ${lapEntity.id}): ${points.size} points.")
-
-                    SelectedLapData(
-                        lap = lapEntity,
-                        locationPoints = points,
-                        isFastestOfSelected = lapEntity.id == fastestOfSelectedLapId
-                    )
-                }.sortedBy { selectedIds.indexOf(it.lap.id) } // Keep original selection order
-
-                Log.d("LapPointsDebug", "Final list of SelectedLapData prepared. Total items: ${results.size}")
-                results
+                // Filter LapEntities based on selected IDs and keep the order
+                allLaps.filter { it.id in selectedIds }.sortedBy { selectedIds.indexOf(it.id) }
             }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+        }
+            // Now, for each LapEntity, fetch its LocationPoints Flow
+            .flatMapLatest { lapEntities ->
+                Log.d("LapPointsDebug", "flatMapLatest (Phase 2) triggered for ${lapEntities.size} lap entities.")
+                if (lapEntities.isEmpty()) {
+                    flowOf(emptyList()) // If no laps selected, emit an empty list of SelectedLapData
+                } else {
+                    // Create a list of Flows, one for each selected lap's points
+                    val flowsForPoints = lapEntities.map { lapEntity ->
+                        // Combine each lapEntity with its corresponding points Flow
+                        locationPointDao.getLocationPointsForLap(lapEntity.id)
+                            .flowOn(Dispatchers.IO)
+                            .conflate()
+                            .onEach { fetchedPoints ->
+                                Log.d("LapPointsDebug", "DAO Flow emitted for Lap ${lapEntity.lapNumber} (ID: ${lapEntity.id}): ${fetchedPoints.size} points.")
+                            }
+                            .map { points -> // Map the points list to a SelectedLapData object
+                                Log.d("LapPointsDebug", "Mapping points for Lap ${lapEntity.lapNumber} (ID: ${lapEntity.id}). Points count: ${points.size}")
+                                // Calculate fastestOfSelected for this particular lap
+                                // (This needs to be re-evaluated for the combined set later,
+                                // or passed down from the combine block if performance is critical)
+                                SelectedLapData(
+                                    lap = lapEntity,
+                                    locationPoints = points,
+                                    // isFastestOfSelected will be set correctly after combining all results
+                                    isFastestOfSelected = false // Temporarily set, will be updated below
+                                )
+                            }
+                            .catch { e ->
+                                Log.e("LapPointsError", "Error fetching points for Lap ${lapEntity.lapNumber} (ID: ${lapEntity.id}): ${e.message}")
+                                emit(SelectedLapData(lap = lapEntity, locationPoints = emptyList(), isFastestOfSelected = false))
+                            }
+                    }
+                    // Combine all the individual SelectedLapData Flows into one Flow of List<SelectedLapData>
+                    if (flowsForPoints.isNotEmpty()) {
+                        kotlinx.coroutines.flow.combine(flowsForPoints) { arrayOfSelectedLapData ->
+                            Log.d("LapPointsDebug", "Combine (Phase 3) triggered for arrayOfSelectedLapData. Size: ${arrayOfSelectedLapData.size}")
+                            val list = arrayOfSelectedLapData.toList()
+                            val fastestOfSelectedDuration = list.minOfOrNull { it.lap.durationMillis }
+                            val finalResults = list.map { selectedLapData ->
+                                selectedLapData.copy(isFastestOfSelected = selectedLapData.lap.durationMillis == fastestOfSelectedDuration)
+                            }
+                            Log.d("LapPointsDebug", "Final results prepared with fastest of selected.")
+                            finalResults
+                        }
+                    } else {
+                        flowOf(emptyList())
+                    }
+                }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
 }

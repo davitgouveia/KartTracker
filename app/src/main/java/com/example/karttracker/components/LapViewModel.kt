@@ -3,6 +3,7 @@ package com.example.karttracker.components
 import android.Manifest
 import android.app.Application
 import android.location.Location
+import android.util.Log
 import androidx.annotation.RequiresPermission
 import com.google.android.gms.location.LocationRequest
 import androidx.lifecycle.AndroidViewModel
@@ -277,8 +278,12 @@ class LapViewModel @Inject constructor(
         val formattedTime = formatTime(lapTimeMillis)
         val newLap = Lap(lapCounter, lastLapStartTime, lapEndTime, lapTimeMillis, formattedTime)
 
+        Log.d("ProcessLap", "--- Processing Lap ${newLap.lapNumber} ---")
+        Log.d("ProcessLap", "Lap Start Time (lastLapStartTime): ${newLap.startTimeMillis}")
+        Log.d("ProcessLap", "Lap End Time (lapEndTime): ${newLap.endTimeMillis}")
+        Log.d("ProcessLap", "Lap Duration: ${newLap.durationMillis} ms")
+
         viewModelScope.launch {
-            // Save lap to DB
             currentSessionId?.let { sessionId ->
                 val lapEntity = LapEntity(
                     sessionId = sessionId,
@@ -289,16 +294,43 @@ class LapViewModel @Inject constructor(
                     formattedTime = newLap.formattedTime
                 )
                 val insertedLapId = lapDao.insertLap(lapEntity)
+                Log.d("ProcessLap", "Inserted Lap Entity. ID: $insertedLapId, SessionID: $sessionId")
 
-                //Set all location points on timeframe to created Lap
-                locationPointDao.updateLapIdForPointsInTimeRange(
+                // BEFORE UPDATE: Check how many points currently exist for this session within the time range with NULL lapId
+                val pointsBeforeUpdate = locationPointDao
+                    .getLocationPointInTimeRange(
+                        sessionId = sessionId,
+                        startTime = lapEntity.startTimeMillis,
+                        endTime = lapEntity.endTimeMillis
+                    )
+                    .firstOrNull() // <--- Correctly collect the first emitted list
+                    ?: emptyList()
+                Log.d("ProcessLap", "BEFORE UPDATE: ${pointsBeforeUpdate.size} points found for session $sessionId in range ${lapEntity.startTimeMillis}-${lapEntity.endTimeMillis}")
+                pointsBeforeUpdate.forEach { point ->
+                    Log.d("ProcessLap", "  Point Time: ${point.timestamp}, Current LapId: ${point.lapId}")
+                }
+
+                // Execute the update
+                val rowsUpdated = locationPointDao.updateLapIdForPointsInTimeRange(
                     sessionId = sessionId,
                     lapId = insertedLapId,
                     startTime = lapEntity.startTimeMillis,
                     endTime = lapEntity.endTimeMillis
                 )
+                Log.d("ProcessLap", "UPDATE completed. Rows affected: $rowsUpdated for Lap ID $insertedLapId")
+
+                // AFTER UPDATE: Check how many points now have the assigned lapId
+                val pointsAfterUpdate = locationPointDao
+                    .getLocationPointsForLap(insertedLapId) // Query by the new lapId
+                    .firstOrNull() // <--- Correctly collect the first emitted list
+                    ?: emptyList()
+                Log.d("ProcessLap", "AFTER UPDATE: ${pointsAfterUpdate.size} points now have Lap ID $insertedLapId.")
+                pointsAfterUpdate.forEach { point ->
+                    Log.d("ProcessLap", "  Point Time: ${point.timestamp}, New LapId: ${point.lapId}")
+                }
             }
             _laps.value += newLap
+            Log.d("ProcessLap", "Lap ${newLap.lapNumber} added to _laps StateFlow.")
         }
     }
 
