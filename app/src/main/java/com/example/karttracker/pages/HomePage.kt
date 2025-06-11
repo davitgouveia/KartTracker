@@ -1,7 +1,5 @@
 package com.example.karttracker.pages
 
-import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,8 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -22,18 +18,20 @@ import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.karttracker.components.DefaultLayout
+import com.example.karttracker.components.HomePageViewModel
 import com.example.karttracker.ui.theme.Typography
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -41,11 +39,13 @@ import java.util.Locale
 
 
 @Composable
-fun HomePage(navController: NavController){
+fun HomePage(navController: NavController, viewModel: HomePageViewModel = hiltViewModel()){
+    val currentCity by viewModel.currentCity.collectAsState()
+
     MaterialTheme {
         DefaultLayout(title = "Kart Tracker") {
             Column (modifier = Modifier.fillMaxSize()) {
-                NearestTrackCard()
+                NearestTrackCard(currentCity)
                 Box ( modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center  )  {
                     ElevatedButton(
@@ -71,14 +71,8 @@ fun HomePage(navController: NavController){
     }
 }
 
-
 @Composable
-fun MainTitle(text: String){
-    Text(text = text, style = Typography.headlineMedium)
-}
-
-@Composable
-fun NearestTrackCard() {
+fun NearestTrackCard(currentCity: String) {
     Card(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -97,7 +91,7 @@ fun NearestTrackCard() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TrackLocationMap()
+                TrackLocationMap(currentCity = currentCity)
                 DateAndWeather()
             }
         }
@@ -105,10 +99,10 @@ fun NearestTrackCard() {
 }
 
 @Composable
-fun TrackLocationMap() {
+fun TrackLocationMap(currentCity: String) {
     Box {
         Column {
-            Text(text = "ECPA")
+            Text(text = currentCity, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -124,12 +118,12 @@ fun DateAndWeather() {
     Box(
 
         modifier = Modifier.fillMaxWidth(),
-        contentAlignment = Alignment.CenterEnd // Aligns content to the end
+        contentAlignment = Alignment.CenterEnd
     ) {
         Column(
-            horizontalAlignment = Alignment.End // Aligns text to the right within Column
+            horizontalAlignment = Alignment.End
         ) {
-            Text(text = "36°C", style = Typography.titleLarge, textAlign = TextAlign.End)
+
             Text(text = currentDateFormated(), style = Typography.bodyMedium, textAlign = TextAlign.End)
         }
     }

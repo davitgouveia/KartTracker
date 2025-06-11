@@ -10,6 +10,7 @@ import androidx.navigation.compose.NavHost
 import com.example.karttracker.pages.RecordPage
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.karttracker.pages.HistoryPage
 import com.example.karttracker.pages.LapTrackerMapScreen
 import com.example.karttracker.pages.RADIUS_ARG
 import com.example.karttracker.pages.START_FINISH_LAT_ARG
@@ -21,7 +22,8 @@ import com.example.karttracker.pages.SessionSummaryScreen
 fun AppNavHost(navController: NavHostController) {
     NavHost(navController = navController, startDestination = "mainScreen") {
         composable("mainScreen") { MainScreen(navController) }
-        composable("map") { LapTrackerMapScreen(navController) } // Added LapTrackerMapScreen route
+        composable("map") { LapTrackerMapScreen(navController) }
+        composable("history") { HistoryPage(navController) }
         composable(
             "record/{$START_FINISH_LAT_ARG}/{$START_FINISH_LNG_ARG}/{$RADIUS_ARG}",
             arguments = listOf(

@@ -67,7 +67,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("com.google.android.gms:play-services-maps:19.2.0")
     implementation("com.google.maps.android:maps-compose:6.4.1")
-    implementation("com.google.accompanist:accompanist-permissions:0.35.0-alpha")
+    implementation("com.google.accompanist:accompanist-permissions:0.37.3")
 
     implementation("com.google.dagger:hilt-android:2.56.2")
     implementation("com.google.firebase:protolite-well-known-types:18.0.1")

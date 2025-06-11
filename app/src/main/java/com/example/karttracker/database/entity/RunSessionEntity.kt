@@ -9,6 +9,5 @@ data class RunSessionEntity(
     var name: String = "",
     val startTimeMillis: Long,
     val endTimeMillis: Long,
-    val totalDurationMillis: Long,
-    // Add other session-level data like total distance, etc.
+    val totalDurationMillis: Long
 )

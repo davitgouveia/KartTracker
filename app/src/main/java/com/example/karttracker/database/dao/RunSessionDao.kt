@@ -21,4 +21,7 @@ interface RunSessionDao {
 
     @Query("SELECT * FROM run_sessions WHERE id = :sessionId")
     fun getRunSessionById(sessionId: Long): Flow<RunSessionEntity?>
+
+    @Query("DELETE FROM run_sessions WHERE id = :sessionId")
+    suspend fun deleteRunSessionById(sessionId: Long)
 }
