@@ -11,7 +11,7 @@ import com.example.karttracker.database.entity.RunSessionEntity
 
 @Database(
     entities = [RunSessionEntity::class, LapEntity::class, LocationPointEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false // Set to true to export schema for migrations
 )
 abstract class AppDatabase : RoomDatabase() {

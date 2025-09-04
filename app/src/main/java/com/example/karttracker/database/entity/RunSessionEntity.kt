@@ -9,5 +9,10 @@ data class RunSessionEntity(
     var name: String = "",
     val startTimeMillis: Long,
     val endTimeMillis: Long,
-    val totalDurationMillis: Long
+    //post-computed data
+    val totalDurationMillis: Long,
+    val avgLapTimeMillis: Long,
+    val maxSpeed: Double,
+    val lapCount: Int,
+    val fastestLap: Int,
 )

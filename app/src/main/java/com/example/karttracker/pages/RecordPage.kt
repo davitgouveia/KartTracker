@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.karttracker.components.LapViewModel
+import com.example.karttracker.utils.TimeUtils
 
 
 @Composable
@@ -56,10 +57,6 @@ fun LabelValue(label: String, value: String, color: Color = Color.Black) {
     }
 }
 
-// Extension functions to format time and delta
-fun Double.formatTime(): String = String.format("%.3f", this)
-fun Double.formatDelta(): String = (if (this >= 0) "+%.3f" else "%.3f").format(this)
-
 @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION])
 @Composable
 fun RecordPage(
@@ -74,7 +71,6 @@ fun RecordPage(
     val lastLap by lapViewModel.lastLap.collectAsState()
     val bestLap by lapViewModel.bestLap.collectAsState()
     val lapCount by lapViewModel.lapCount.collectAsState()
-    val lapDelta by lapViewModel.lapDelta.collectAsState()
 
     // Observe the session completion event
     LaunchedEffect(Unit) {
@@ -114,15 +110,10 @@ fun RecordPage(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.align(Alignment.CenterStart)
         ) {
-            LabelValue("Best lap", bestLap)
+            LabelValue("Best lap", bestLap?.let { TimeUtils.formatTime(it.timeMillis) } ?: "00:00.00")
             LabelValue("Last lap", lastLap)
             LabelValue("Current", currentLapTime)
             LabelValue("LAP", lapCount.toString())
-            /*LabelValue(
-                "DELTA - Best lap",
-                lapDelta.formatDelta(),
-                color = if (lapDelta < 0) Color.Green else Color.Red
-            )*/
         }
 
         // Circle indicator and STOP button on the right

@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,7 +26,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -45,7 +43,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -53,6 +50,7 @@ import com.example.karttracker.components.DefaultLayout
 import com.example.karttracker.components.SessionSummaryViewModel
 import com.example.karttracker.database.entity.LapEntity
 import com.example.karttracker.icons.Hourglass
+import com.example.karttracker.utils.TimeUtils
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
@@ -192,7 +190,7 @@ fun SessionSummaryScreen(
                                     modifier = Modifier.size(20.dp) // Adjust icon size as needed
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Duration: ${formatTime(session.totalDurationMillis)}")
+                                Text("Duration: ${TimeUtils.formatTime(session.totalDurationMillis)}")
                             }
 
                         }
@@ -311,7 +309,7 @@ fun SessionSummaryScreen(
                                                 else -> Lap1Color
                                             }
                                             Text(
-                                                text = "Lap ${selectedLapData.lap.lapNumber}: ${formatTime(selectedLapData.lap.durationMillis)}",
+                                                text = "Lap ${selectedLapData.lap.lapNumber}: ${TimeUtils.formatTime(selectedLapData.lap.durationMillis)}",
                                                 color = color,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -320,7 +318,7 @@ fun SessionSummaryScreen(
                                 } else if (selectedLapsWithPoints.size == 1) {
                                     val selectedLapData = selectedLapsWithPoints.first()
                                     Text(
-                                        text = "Lap ${selectedLapData.lap.lapNumber}: ${formatTime(selectedLapData.lap.durationMillis)}",
+                                        text = "Lap ${selectedLapData.lap.lapNumber}: ${TimeUtils.formatTime(selectedLapData.lap.durationMillis)}",
                                         color = Lap1Color,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier
@@ -367,13 +365,6 @@ fun SessionSummaryScreen(
     }
 }
 
-fun formatTime(millis: Long): String {
-    val seconds = (millis / 1000) % 60
-    val minutes = (millis / (1000 * 60)) % 60
-    val milliseconds = (millis % 1000) / 10
-    return String.format("%02d:%02d.%02d", minutes, seconds, milliseconds)
-}
-
 @Composable
 fun LapListItem(
     lap: LapEntity,
@@ -407,7 +398,7 @@ fun LapListItem(
         ) {
             Column {
                 Text(
-                    text = "Lap ${lap.lapNumber}: ${formatTime(lap.durationMillis)}",
+                    text = "Lap ${lap.lapNumber}: ${TimeUtils.formatTime(lap.durationMillis)}",
                     color = textColor,
                     fontWeight = fontWeight,
                     style = MaterialTheme.typography.bodyLarge

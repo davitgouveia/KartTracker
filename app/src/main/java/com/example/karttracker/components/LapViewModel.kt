@@ -18,6 +18,7 @@ import com.example.karttracker.database.entity.RunSessionEntity
 import com.example.karttracker.pages.RADIUS_ARG
 import com.example.karttracker.pages.START_FINISH_LAT_ARG
 import com.example.karttracker.pages.START_FINISH_LNG_ARG
+import com.example.karttracker.utils.TimeUtils
 import com.google.android.gms.location.*
 import com.google.android.gms.location.LocationServices
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,6 +38,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import java.util.Objects
 
 data class Lap(
     val lapNumber: Int,
@@ -44,6 +46,11 @@ data class Lap(
     val endTimeMillis: Long,
     val durationMillis: Long,
     val formattedTime: String
+)
+
+data class BestLap(
+    val lapNumber: Int,
+    val timeMillis: Long
 )
 
 @HiltViewModel
@@ -70,24 +77,18 @@ class LapViewModel @Inject constructor(
         longitude = startFinishLng
     }
 
+
+    /*
+    * StateFlows (UI)
+    * */
     private val _speed = MutableStateFlow(0.0)
     val speed: StateFlow<Double> = _speed
 
     private val _currentLapTime = MutableStateFlow("00:00.00")
     val currentLapTime: StateFlow<String> = _currentLapTime // Now updates as a live clock
 
-    private var hasStartedLapSession = false
-
-    // Job for updating currentLapTime continuously
-    private var currentLapTimerJob: Job? = null
-
     private val _laps = MutableStateFlow<List<Lap>>(emptyList())
     val laps: StateFlow<List<Lap>> = _laps.asStateFlow()
-
-    private var lastLapStartTime: Long = 0L
-    private var isInsideLapZone = false
-    private var sessionStartTime: Long = 0L // Renamed for clarity (overall session start)
-    private var lapCounter: Int = 0 // Tracks the current lap number
 
     private val _elapsedTime = MutableStateFlow("00:00.00")
     val elapsedTime: StateFlow<String> = _elapsedTime
@@ -95,38 +96,12 @@ class LapViewModel @Inject constructor(
     private val _locationPoints = MutableStateFlow<List<Location>>(emptyList())
     val locationPoints: StateFlow<List<Location>> = _locationPoints.asStateFlow()
 
-    private var currentSessionId: Long? = null
     private val _sessionCompleted = MutableSharedFlow<Long>()
     val sessionCompleted: SharedFlow<Long> = _sessionCompleted.asSharedFlow()
 
-    private val locationCallback = object : LocationCallback() {
-        override fun onLocationResult(result: LocationResult) {
-            result.lastLocation?.let { location ->
-                updateSpeed(location)
-                checkLapCompletion(location)
-                updateElapsedTime()
-                _locationPoints.value += location
-
-                // Save location point to DB
-                viewModelScope.launch {
-                    currentSessionId?.let { sessionId ->
-                        locationPointDao.insertLocationPoint(
-                            LocationPointEntity(
-                                sessionId = sessionId,
-                                latitude = location.latitude,
-                                longitude = location.longitude,
-                                altitude = location.altitude,
-                                speed = location.speed,
-                                timestamp = location.time,
-                                lapId = null
-                            )
-                        )
-                    }
-                }
-            }
-        }
-    }
-
+    /*
+    * Lap stats
+    * */
 
     val lastLap: StateFlow<String> = _laps.map { laps ->
         laps.lastOrNull()?.formattedTime ?: "00:00.00"
@@ -136,14 +111,16 @@ class LapViewModel @Inject constructor(
         initialValue = "00:00.00"
     )
 
-    val bestLap: StateFlow<String> = _laps
+    val bestLap: StateFlow<BestLap?> = _laps
         .map { laps ->
-            laps.minByOrNull { it.durationMillis }?.formattedTime ?: "00:00.00"
+            laps.minByOrNull { it.durationMillis }?.let { best ->
+                BestLap(best.lapNumber, best.durationMillis)
+            }
         }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
-            initialValue = "00:00.00"
+            initialValue = null
         )
 
     val lapCount: StateFlow<Int> = _laps.map { it.size }.stateIn(
@@ -152,39 +129,32 @@ class LapViewModel @Inject constructor(
         initialValue = 0
     )
 
+    private var hasStartedLapSession = false
+    // Job for updating currentLapTime continuously
+    private var currentLapTimerJob: Job? = null
 
-    val lapDelta: StateFlow<Double> = combine(
-        currentLapTime, // Observe current lap time (as a trigger)
-        _laps // Observe the list of laps (to get best lap duration)
-    ) { currentLapTimeString, laps ->
-        val bestLapDuration = laps.minByOrNull { it.durationMillis }?.durationMillis
-        val currentLapDuration = try {
-            parseTime(currentLapTimeString)
-        } catch (e: Exception) {
-            0L // Handle parsing error
+    private var isInsideLapZone = false
+    private var sessionStartTime: Long = 0L
+    private var lastLapStartTime: Long = 0L
+    private var lapCounter: Int = 0
+
+    private var currentSessionId: Long? = null
+
+    /*
+    * Lap logic
+    * */
+
+    private fun startCurrentLapTimer() {
+        currentLapTimerJob?.cancel() // Cancel any previous timer
+        if (lastLapStartTime == 0L) return // Don't start if lastLapStartTime isn't set
+
+        currentLapTimerJob = viewModelScope.launch {
+            while (true) {
+                val diff = System.currentTimeMillis() - lastLapStartTime
+                _currentLapTime.value = TimeUtils.formatTime(diff)
+                delay(10) // Update every 10 milliseconds for smooth display
+            }
         }
-
-        if (bestLapDuration == null || bestLapDuration == 0L || currentLapDuration == 0L) {
-            0.0 // Not enough data for a meaningful delta
-        } else {
-            (currentLapDuration - bestLapDuration).toDouble() / 1000.0 // Delta in seconds
-        }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = 0.0
-    )
-
-    private fun updateElapsedTime() {
-        val currentTime = System.currentTimeMillis()
-        val diff = currentTime - sessionStartTime
-        _elapsedTime.value = formatTime(diff)
-    }
-
-    private fun updateSpeed(location: Location) {
-        val speedMps = location.speed.toDouble()
-        val speedKph = speedMps * 3.6
-        _speed.value = speedKph
     }
 
     private var firstZone = true
@@ -218,64 +188,10 @@ class LapViewModel @Inject constructor(
         isInsideLapZone = nowInside
     }
 
-    private fun startCurrentLapTimer() {
-        currentLapTimerJob?.cancel() // Cancel any previous timer
-        if (lastLapStartTime == 0L) return // Don't start if lastLapStartTime isn't set
-
-        currentLapTimerJob = viewModelScope.launch {
-            while (true) {
-                val diff = System.currentTimeMillis() - lastLapStartTime
-                _currentLapTime.value = formatTime(diff)
-                delay(10) // Update every 10 milliseconds for smooth display
-            }
-        }
-    }
-
-    private fun formatTime(millis: Long): String {
-        val seconds = (millis / 1000) % 60
-        val minutes = (millis / (1000 * 60)) % 60
-        val milliseconds = (millis % 1000) / 10
-        return String.format("%02d:%02d.%02d", minutes, seconds, milliseconds)
-    }
-
-    private fun parseTime(formattedTime: String): Long {
-        val parts = formattedTime.split(":", ".")
-        if (parts.size != 3) throw IllegalArgumentException("Invalid time format: $formattedTime")
-
-        val minutes = parts[0].toLong()
-        val seconds = parts[1].toLong()
-        val milliseconds = parts[2].toLong() * 10 // Convert back to actual milliseconds
-
-        return minutes * 60 * 1000 + seconds * 1000 + milliseconds
-    }
-
-
-    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION])
-    fun startLocationUpdates() {
-        viewModelScope.launch {
-            // Create a new RunSession when starting
-            val newSession = RunSessionEntity(
-                name = "",
-                startTimeMillis = System.currentTimeMillis(),
-                endTimeMillis = 0L, // Will be updated on stop
-                totalDurationMillis = 0L // Will be updated on stop
-            )
-            currentSessionId = runSessionDao.insertRunSession(newSession)
-            sessionStartTime = newSession.startTimeMillis
-            lastLapStartTime = 0L // Reset for a clean start of the first lap
-            lapCounter = 0 // Reset lap count
-            _laps.value = emptyList() // Clear previous laps
-            _locationPoints.value = emptyList() // Clear previous location points
-            isInsideLapZone = false // Reset zone status
-            hasStartedLapSession = false
-            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null)
-        }
-    }
-
     private fun processCompletedLap(lapEndTime: Long) {
         lapCounter++
         val lapTimeMillis = lapEndTime - lastLapStartTime
-        val formattedTime = formatTime(lapTimeMillis)
+        val formattedTime = TimeUtils.formatTime(lapTimeMillis)
         val newLap = Lap(lapCounter, lastLapStartTime, lapEndTime, lapTimeMillis, formattedTime)
 
         Log.d("ProcessLap", "--- Processing Lap ${newLap.lapNumber} ---")
@@ -334,6 +250,67 @@ class LapViewModel @Inject constructor(
         }
     }
 
+
+
+    /*
+    * Location Updates
+    * */
+
+    private val locationCallback = object : LocationCallback() {
+        override fun onLocationResult(result: LocationResult) {
+            result.lastLocation?.let { location ->
+                updateSpeed(location)
+                checkLapCompletion(location)
+                updateElapsedTime()
+                _locationPoints.value += location
+
+                // Save location point to DB
+                viewModelScope.launch {
+                    currentSessionId?.let { sessionId ->
+                        locationPointDao.insertLocationPoint(
+                            LocationPointEntity(
+                                sessionId = sessionId,
+                                latitude = location.latitude,
+                                longitude = location.longitude,
+                                altitude = location.altitude,
+                                speed = location.speed,
+                                timestamp = location.time,
+                                lapId = null
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION])
+    fun startLocationUpdates() {
+        viewModelScope.launch {
+            // Create a new RunSession when starting
+            val newSession = RunSessionEntity(
+                name = "",
+                startTimeMillis = System.currentTimeMillis(),
+                // Will be updated on stop
+                endTimeMillis = 0L,
+                totalDurationMillis = 0L,
+                avgLapTimeMillis = 0L,
+                maxSpeed = 0.0,
+                lapCount = 0,
+                fastestLap = 0
+            )
+            currentSessionId = runSessionDao.insertRunSession(newSession)
+            sessionStartTime = newSession.startTimeMillis
+            lastLapStartTime = 0L // Reset for a clean start of the first lap
+            lapCounter = 0 // Reset lap count
+            _laps.value = emptyList() // Clear previous laps
+            _locationPoints.value = emptyList() // Clear previous location points
+            isInsideLapZone = false // Reset zone status
+            hasStartedLapSession = false
+            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null)
+        }
+    }
+
     fun stopLocationUpdates() {
         fusedLocationClient.removeLocationUpdates(locationCallback)
         currentLapTimerJob?.cancel() // Stop the current lap timer
@@ -346,7 +323,11 @@ class LapViewModel @Inject constructor(
                 session?.let { existingSession ->
                     val updatedSession = existingSession.copy(
                         endTimeMillis = System.currentTimeMillis(),
-                        totalDurationMillis = System.currentTimeMillis() - existingSession.startTimeMillis
+                        totalDurationMillis = System.currentTimeMillis() - existingSession.startTimeMillis,
+                        lapCount = lapCounter,
+                        maxSpeed = _maxSpeed,
+                        fastestLap = bestLap.value?.lapNumber ?: 0
+                        avgLapTimeMillis =
                     )
                     runSessionDao.updateRunSession(updatedSession)
                 }
@@ -370,6 +351,29 @@ class LapViewModel @Inject constructor(
         currentSessionId = null
     }
 
+
+
+    /*
+    * Utils
+    * */
+
+    private fun updateElapsedTime() {
+        val currentTime = System.currentTimeMillis()
+        val diff = currentTime - sessionStartTime
+        _elapsedTime.value = TimeUtils.formatTime(diff)
+    }
+
+    var _maxSpeed: Double = 0.0
+
+    private fun updateSpeed(location: Location) {
+        val speedMps = location.speed.toDouble()
+        val speedKph = speedMps * 3.6
+        _speed.value = speedKph
+
+        if (speedKph > _maxSpeed){
+            _maxSpeed = speedKph
+        }
+    }
 
     override fun onCleared() {
         super.onCleared()
