@@ -1,7 +1,10 @@
 package com.example.karttracker.pages
 
+import androidx.compose.foundation.Image
+import com.example.karttracker.R
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,10 +19,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -33,7 +38,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -41,7 +51,7 @@ import com.example.karttracker.components.DefaultLayout
 import com.example.karttracker.components.HistoryViewModel
 import com.example.karttracker.database.entity.RunSessionEntity
 import com.example.karttracker.icons.Hourglass
-import com.google.type.Date
+import com.example.karttracker.utils.TimeUtils
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -78,7 +88,8 @@ fun HistoryPage(
                                 onDeleteClick = { id ->
                                     sessionToDeleteId = id
                                     showDeleteDialog = true
-                                }
+                                },
+                                onShare = {}
                             )
                         }
                     }
@@ -124,8 +135,12 @@ fun HistoryPage(
 fun RunSessionCard(
     session: RunSessionEntity,
     onClick: (RunSessionEntity) -> Unit,
-    onDeleteClick: (Long) -> Unit
+    onDeleteClick: (Long) -> Unit,
+    onShare: (RunSessionEntity) -> Unit
 ) {
+
+    val nameIsEmpty: Boolean = true;
+    val dateFormat = remember { SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()) }.format(java.util.Date(session.startTimeMillis))
 
     Card(
         modifier = Modifier
@@ -139,56 +154,99 @@ fun RunSessionCard(
         )
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp), // Apply padding inside the card for content
-            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                val dateFormat = remember { SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()) }
-
-                Text(
-                    text = if (session.name.isEmpty()) "Session on ${dateFormat.format(
-                        java.util.Date(
-                            session.startTimeMillis
+            //Main Info
+            Column (modifier = Modifier.weight(1f)) {
+                    Row {
+                        Column (modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (nameIsEmpty) "$dateFormat Session" else session.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                    )}" else session.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                        Text(dateFormat,
+                            style = MaterialTheme.typography.bodySmall)
+
+                        }
+                        // Overflow Menu
+                        var expanded by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { expanded = true }) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                            }
+                            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Share") },
+                                    onClick = {
+                                        expanded = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Delete") },
+                                    onClick = {
+                                        expanded = false
+                                        onDeleteClick(session.id)
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Hourglass,
-                        contentDescription = "Duration",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Duration: ${formatTime(session.totalDurationMillis)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                // Thumbnail
+                Row (
+                    ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_runsession_placeholder), // fallback image
+                        contentDescription = "Session photo placeholder",
+                        modifier = Modifier
+                            .size(156.dp, 56.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop
                     )
                 }
-            }
 
-            IconButton(
-                onClick = { onDeleteClick(session.id) },
-                modifier = Modifier
-                    .size(48.dp)
-                    .align(Alignment.CenterVertically)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete Session",
-                    tint = MaterialTheme.colorScheme.error
-                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("⏱ ${TimeUtils.formatTime(session.totalDurationMillis)}",
+                        style = MaterialTheme.typography.bodySmall)
+                    Text("🏁 ${session.lapCount} laps",
+                        style = MaterialTheme.typography.bodySmall)
+                    session.avgLapTimeMillis.let {
+                        Text("⚡ ${TimeUtils.formatTime(it)} avg",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
         }
     }
+}
+
+
+@Preview(showBackground = true)
+@Composable
+fun RunSessionCardPreview() {
+    RunSessionCard(
+        session = RunSessionEntity(
+            id = 1,
+            name = "Test Session",
+            startTimeMillis =  0L,
+            endTimeMillis = 600000L,
+            totalDurationMillis = 600000L,
+            avgLapTimeMillis = 90000L,
+            maxSpeed = 80.0,
+            lapCount = 5,
+            fastestLap = 8
+        ),
+        onClick = {},
+        onDeleteClick = {},
+        onShare = {}
+    )
 }

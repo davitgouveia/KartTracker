@@ -34,11 +34,10 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.reduce
 import kotlinx.coroutines.flow.stateIn
-import java.util.Objects
 
 data class Lap(
     val lapNumber: Int,
@@ -139,6 +138,8 @@ class LapViewModel @Inject constructor(
     private var lapCounter: Int = 0
 
     private var currentSessionId: Long? = null
+
+    private var _avgLapTime: Long = 0L
 
     /*
     * Lap logic
@@ -246,7 +247,17 @@ class LapViewModel @Inject constructor(
                 }
             }
             _laps.value += newLap
+            processAvgLapTime(_laps.value)
             Log.d("ProcessLap", "Lap ${newLap.lapNumber} added to _laps StateFlow.")
+        }
+    }
+
+    private fun processAvgLapTime(laps: List<Lap>){
+        if (laps.isNotEmpty()) {
+            val totalDuration = laps.sumOf { it.durationMillis }
+            _avgLapTime = totalDuration / laps.size
+        } else {
+            _avgLapTime = 0L
         }
     }
 
@@ -326,8 +337,8 @@ class LapViewModel @Inject constructor(
                         totalDurationMillis = System.currentTimeMillis() - existingSession.startTimeMillis,
                         lapCount = lapCounter,
                         maxSpeed = _maxSpeed,
-                        fastestLap = bestLap.value?.lapNumber ?: 0
-                        avgLapTimeMillis =
+                        fastestLap = bestLap.value?.lapNumber ?: 0,
+                        avgLapTimeMillis = _avgLapTime
                     )
                     runSessionDao.updateRunSession(updatedSession)
                 }
@@ -346,6 +357,8 @@ class LapViewModel @Inject constructor(
         lastLapStartTime = 0L
         sessionStartTime = 0L
         lapCounter = 0
+        _maxSpeed = 0.0
+        _avgLapTime = 0L
         isInsideLapZone = false
         hasStartedLapSession = false
         currentSessionId = null
