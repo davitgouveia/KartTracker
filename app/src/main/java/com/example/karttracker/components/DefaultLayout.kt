@@ -22,12 +22,11 @@ fun DefaultLayout(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(start = 12.dp, bottom = 16.dp, top = 18.dp)
             )
             content()
         }

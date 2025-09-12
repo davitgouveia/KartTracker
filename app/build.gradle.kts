@@ -99,6 +99,10 @@ dependencies {
     // Testing Navigation
     androidTestImplementation("androidx.navigation:navigation-testing:$nav_version")
 
+    //Images
+    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+
+
     val room_version = "2.7.1"
     ksp("androidx.room:room-compiler:$room_version")
     implementation("androidx.room:room-ktx:$room_version")

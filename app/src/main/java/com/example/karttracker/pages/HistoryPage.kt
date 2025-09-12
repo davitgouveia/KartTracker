@@ -1,6 +1,7 @@
 package com.example.karttracker.pages
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import com.example.karttracker.R
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,17 +9,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -39,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -47,10 +47,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil3.compose.rememberAsyncImagePainter
 import com.example.karttracker.components.DefaultLayout
 import com.example.karttracker.components.HistoryViewModel
 import com.example.karttracker.database.entity.RunSessionEntity
-import com.example.karttracker.icons.Hourglass
 import com.example.karttracker.utils.TimeUtils
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -77,7 +77,9 @@ fun HistoryPage(
                     Text("No sessions recorded yet.", style = MaterialTheme.typography.bodyLarge)
                 } else {
                     LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        modifier = Modifier
+                            .background(color = Color.LightGray),
                     ) {
                         items(runSessions) { session ->
                             RunSessionCard(
@@ -139,43 +141,39 @@ fun RunSessionCard(
     onShare: (RunSessionEntity) -> Unit
 ) {
 
-    val nameIsEmpty: Boolean = true;
     val dateFormat = remember { SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()) }.format(java.util.Date(session.startTimeMillis))
+    val sessionName: String = if (session.name.isBlank()) {
+        "${TimeUtils.getPeriodOfDay(session.startTimeMillis)} Session"
+    } else session.name;
 
-    Card(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick(session) }
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.LightGray // Use a subtle background color from your theme
-        )
+            .background(color = MaterialTheme.colorScheme.background),
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             //Main Info
             Column (modifier = Modifier.weight(1f)) {
-                    Row {
-                        Column (modifier = Modifier.weight(1f)) {
+                Row {
+                    Column (modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (nameIsEmpty) "$dateFormat Session" else session.name,
+                            text = sessionName,
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(dateFormat,
                             style = MaterialTheme.typography.bodySmall)
-
                         }
                         // Overflow Menu
                         var expanded by remember { mutableStateOf(false) }
                         Box {
                             IconButton(onClick = { expanded = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                                Icon(Icons.Default.MoreVert, contentDescription = "More options", modifier = Modifier.rotate(90f))
                             }
                             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                                 DropdownMenuItem(
@@ -193,36 +191,51 @@ fun RunSessionCard(
                                 )
                             }
                         }
-                    }
+                }
 
 
 
                 Spacer(modifier = Modifier.height(4.dp))
 
                 // Thumbnail
-                Row (
-                    ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_runsession_placeholder), // fallback image
-                        contentDescription = "Session photo placeholder",
-                        modifier = Modifier
-                            .size(156.dp, 56.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
-                    )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp), // optional padding
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    if (/*session.photoUri != null*/ false) {
+                        Image(
+                            painter = rememberAsyncImagePainter("url here"),
+                            contentDescription = "Session photo",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(19f / 6f)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.placeholder_track_image),
+                            contentDescription = "Session placeholder",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(19f / 12f)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(1f), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("⏱ ${TimeUtils.formatTime(session.totalDurationMillis)}",
                         style = MaterialTheme.typography.bodySmall)
                     Text("🏁 ${session.lapCount} laps",
                         style = MaterialTheme.typography.bodySmall)
-                    session.avgLapTimeMillis.let {
-                        Text("⚡ ${TimeUtils.formatTime(it)} avg",
-                            style = MaterialTheme.typography.bodySmall)
-                    }
+                    Text("⚡ ${TimeUtils.formatTime(session.avgLapTimeMillis)} avg",
+                        style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -236,7 +249,7 @@ fun RunSessionCardPreview() {
     RunSessionCard(
         session = RunSessionEntity(
             id = 1,
-            name = "Test Session",
+            name = "",
             startTimeMillis =  0L,
             endTimeMillis = 600000L,
             totalDurationMillis = 600000L,
