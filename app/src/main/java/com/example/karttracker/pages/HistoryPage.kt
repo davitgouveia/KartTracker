@@ -2,6 +2,7 @@ package com.example.karttracker.pages
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import com.example.karttracker.R
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,8 +23,10 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,7 +41,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -47,7 +52,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import coil3.compose.rememberAsyncImagePainter
 import com.example.karttracker.components.DefaultLayout
 import com.example.karttracker.components.HistoryViewModel
 import com.example.karttracker.database.entity.RunSessionEntity
@@ -78,8 +82,6 @@ fun HistoryPage(
                 } else {
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(14.dp),
-                        modifier = Modifier
-                            .background(color = Color.LightGray),
                     ) {
                         items(runSessions) { session ->
                             RunSessionCard(
@@ -142,15 +144,31 @@ fun RunSessionCard(
 ) {
 
     val dateFormat = remember { SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()) }.format(java.util.Date(session.startTimeMillis))
-    val sessionName: String = if (session.name.isBlank()) {
+    val sessionName: String = session.name.ifBlank {
         "${TimeUtils.getPeriodOfDay(session.startTimeMillis)} Session"
-    } else session.name;
+    };
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick(session) }
-            .background(color = MaterialTheme.colorScheme.background),
+            .background(MaterialTheme.colorScheme.surface)
+            .drawBehind {
+                val strokeWidth = 1.dp.toPx()
+                drawLine(
+                    color = Color.LightGray,
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, 0f),
+                    strokeWidth = strokeWidth
+                )
+                drawLine(
+                    color = Color.LightGray,
+                    start = Offset(0f, size.height),
+                    end = Offset(size.width, size.height),
+                    strokeWidth = strokeWidth
+                )
+            },
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -162,6 +180,7 @@ fun RunSessionCard(
                     Column (modifier = Modifier.weight(1f)) {
                         Text(
                             text = sessionName,
+                            color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -205,6 +224,7 @@ fun RunSessionCard(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     if (/*session.photoUri != null*/ false) {
+                        /*
                         Image(
                             painter = rememberAsyncImagePainter("url here"),
                             contentDescription = "Session photo",
@@ -213,7 +233,7 @@ fun RunSessionCard(
                                 .aspectRatio(19f / 6f)
                                 .clip(RoundedCornerShape(8.dp)),
                             contentScale = ContentScale.Crop
-                        )
+                        )*/
                     } else {
                         Image(
                             painter = painterResource(id = R.drawable.placeholder_track_image),
@@ -229,15 +249,35 @@ fun RunSessionCard(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Row(modifier = Modifier.fillMaxWidth(1f), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("⏱ ${TimeUtils.formatTime(session.totalDurationMillis)}",
-                        style = MaterialTheme.typography.bodySmall)
-                    Text("🏁 ${session.lapCount} laps",
-                        style = MaterialTheme.typography.bodySmall)
-                    Text("⚡ ${TimeUtils.formatTime(session.avgLapTimeMillis)} avg",
-                        style = MaterialTheme.typography.bodySmall)
+                SessionData(session);
+            }
+        }
+    }
+    HorizontalDivider(color = MaterialTheme.colorScheme.outline, thickness = 1.dp)
+}
+
+@Composable
+fun SessionData(
+    session: RunSessionEntity){
+
+    Row(modifier = Modifier.fillMaxWidth(1f), horizontalArrangement = Arrangement.SpaceBetween) {
+        SessionDataBlock("Practice", "🏁", "${session.lapCount} Laps")
+        SessionDataBlock("Duration", "⏱", TimeUtils.formatTime(session.totalDurationMillis))
+        SessionDataBlock("Avg. lap time", "⚡", TimeUtils.formatTime(session.avgLapTimeMillis))
+    }
+}
+
+@Composable
+fun SessionDataBlock(title: String, prefix: String, data: String){
+    Column {
+        Text(title, style = MaterialTheme.typography.labelSmall)
+        Row (verticalAlignment = Alignment.CenterVertically) {
+            if(prefix.isNotBlank()){
+                Box(modifier = Modifier.background(color = MaterialTheme.colorScheme.tertiary)){
+                    Text(prefix, style = MaterialTheme.typography.bodySmall)
                 }
             }
+            Text(data, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
