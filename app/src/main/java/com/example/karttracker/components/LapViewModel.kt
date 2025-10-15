@@ -15,6 +15,7 @@ import com.example.karttracker.database.dao.RunSessionDao
 import com.example.karttracker.database.entity.LapEntity
 import com.example.karttracker.database.entity.LocationPointEntity
 import com.example.karttracker.database.entity.RunSessionEntity
+import com.example.karttracker.helpers.maps.drawPathToImage
 import com.example.karttracker.pages.RADIUS_ARG
 import com.example.karttracker.pages.START_FINISH_LAT_ARG
 import com.example.karttracker.pages.START_FINISH_LNG_ARG
@@ -36,7 +37,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.reduce
 import kotlinx.coroutines.flow.stateIn
 
 data class Lap(
@@ -326,6 +326,8 @@ class LapViewModel @Inject constructor(
         fusedLocationClient.removeLocationUpdates(locationCallback)
         currentLapTimerJob?.cancel() // Stop the current lap timer
 
+        val pointsSnapshot = _locationPoints.value.toList()
+
         // Update the RunSession with end time and total duration
         viewModelScope.launch {
             currentSessionId?.let { sessionId ->
@@ -341,6 +343,16 @@ class LapViewModel @Inject constructor(
                         avgLapTimeMillis = _avgLapTime
                     )
                     runSessionDao.updateRunSession(updatedSession)
+
+
+                    val appContext = getApplication<Application>()
+                    val imagePath = drawPathToImage(appContext, pointsSnapshot, sessionId)
+
+                    if (imagePath != null) {
+                        val updatedWithImage = updatedSession.copy(mapImagePath = imagePath)
+                        runSessionDao.updateRunSession(updatedWithImage)
+                    }
+
                 }
 
                 //Emit flag after session saved

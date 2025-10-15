@@ -7,6 +7,7 @@ import com.example.karttracker.database.dao.LocationPointDao
 import com.example.karttracker.database.dao.RunSessionDao
 import com.example.karttracker.database.migrations.MIGRATION_1_2
 import com.example.karttracker.database.migrations.MIGRATION_2_3
+import com.example.karttracker.database.migrations.MIGRATION_3_4
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,6 +26,7 @@ object DatabaseModule {
         )
             .addMigrations(MIGRATION_1_2)
             .addMigrations(MIGRATION_2_3)
+            .addMigrations(MIGRATION_3_4)
             .build()
     }
 

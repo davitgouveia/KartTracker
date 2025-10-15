@@ -1,5 +1,6 @@
 package com.example.karttracker.pages
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,6 +53,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil3.compose.rememberAsyncImagePainter
 import com.example.karttracker.components.DefaultLayout
 import com.example.karttracker.components.HistoryViewModel
 import com.example.karttracker.database.entity.RunSessionEntity
@@ -148,23 +150,20 @@ fun RunSessionCard(
         "${TimeUtils.getPeriodOfDay(session.startTimeMillis)} Session"
     };
 
+    val outlineColor = MaterialTheme.colorScheme.outline
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick(session) }
-            .background(MaterialTheme.colorScheme.surface)
+            .background(surfaceColor)
             .drawBehind {
                 val strokeWidth = 1.dp.toPx()
                 drawLine(
-                    color = Color.LightGray,
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, 0f),
-                    strokeWidth = strokeWidth
-                )
-                drawLine(
-                    color = Color.LightGray,
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
+                    color = outlineColor,
+                    start = Offset(0f, size.height - strokeWidth / 2),
+                    end = Offset(size.width, size.height - strokeWidth / 2),
                     strokeWidth = strokeWidth
                 )
             },
@@ -223,17 +222,16 @@ fun RunSessionCard(
                         .padding(horizontal = 12.dp), // optional padding
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    if (/*session.photoUri != null*/ false) {
-                        /*
+                    if (session.mapImagePath != null && session.mapImagePath.isNotBlank()) {
+                        Log.d("mapImagePath", session.mapImagePath)
                         Image(
-                            painter = rememberAsyncImagePainter("url here"),
-                            contentDescription = "Session photo",
+                            painter = rememberAsyncImagePainter(session.mapImagePath),
+                            contentDescription = "Run map",
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .aspectRatio(19f / 6f)
-                                .clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Crop
-                        )*/
+                                .height(200.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                        )
                     } else {
                         Image(
                             painter = painterResource(id = R.drawable.placeholder_track_image),
@@ -253,7 +251,6 @@ fun RunSessionCard(
             }
         }
     }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outline, thickness = 1.dp)
 }
 
 @Composable
@@ -273,9 +270,7 @@ fun SessionDataBlock(title: String, prefix: String, data: String){
         Text(title, style = MaterialTheme.typography.labelSmall)
         Row (verticalAlignment = Alignment.CenterVertically) {
             if(prefix.isNotBlank()){
-                Box(modifier = Modifier.background(color = MaterialTheme.colorScheme.tertiary)){
-                    Text(prefix, style = MaterialTheme.typography.bodySmall)
-                }
+                Text(prefix, modifier = Modifier.padding(end = 4.dp), style = MaterialTheme.typography.bodySmall)
             }
             Text(data, style = MaterialTheme.typography.bodyMedium)
         }

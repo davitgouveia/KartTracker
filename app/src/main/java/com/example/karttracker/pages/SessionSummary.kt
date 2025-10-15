@@ -420,5 +420,3 @@ fun LapListItem(
         }
     }
 }
-// You can add more lap details here if LapEntity has them
-// For example: Text("Distance: ${lap.distance}", color = textColor)

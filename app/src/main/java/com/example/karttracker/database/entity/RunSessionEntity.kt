@@ -15,4 +15,5 @@ data class RunSessionEntity(
     val maxSpeed: Double,
     val lapCount: Int,
     val fastestLap: Int,
+    val mapImagePath: String? = null
 )
