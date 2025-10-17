@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.karttracker.components.DefaultLayout
+import com.example.karttracker.components.Session.SessionDataBlock
 import com.example.karttracker.components.SessionSummaryViewModel
 import com.example.karttracker.database.entity.LapEntity
 import com.example.karttracker.icons.Hourglass
@@ -86,25 +88,9 @@ fun SessionSummaryScreen(
     val selectedLapIds by summaryViewModel.selectedLapIds.collectAsState()
     val selectedLapsWithPoints by summaryViewModel.selectedLapsWithPoints.collectAsState()
 
-    /*
-    LaunchedEffect(laps, fastestLapId, locationPoints, selectedLapIds, selectedLapsWithPoints) {
-        Log.d("SummaryScreenData", "--- UI Data Update ---")
-        Log.d("SummaryScreenData", "Total Laps: ${laps.size}")
-        laps.forEach { lap ->
-            Log.d("SummaryScreenData", "  Lap ${lap.lapNumber} (ID: ${lap.id}), Duration: ${lap.formattedTime}")
-        }
-        Log.d("SummaryScreenData", "Fastest Overall Lap ID: $fastestLapId")
-        Log.d("SummaryScreenData", "Overall Session Location Points: ${locationPoints.size}")
-
-        Log.d("SummaryScreenData", "Selected Lap IDs: $selectedLapIds")
-        Log.d("SummaryScreenData", "Selected Laps With Points (size): ${selectedLapsWithPoints.size}")
-        selectedLapsWithPoints.forEach { selectedLapData ->
-            Log.d("SummaryScreenData", "  Selected Lap ${selectedLapData.lap.lapNumber} (ID: ${selectedLapData.lap.id}): ${selectedLapData.locationPoints.size} points. Is Fastest of Selected: ${selectedLapData.isFastestOfSelected}")
-        }
-        Log.d("SummaryScreenData", "----------------------")
-    }*/
-
     var sessionName by remember { mutableStateOf("") }
+    var savedSessionName by remember { mutableStateOf("") }
+    var sessionNamePlaceholder by remember { mutableStateOf("") }
     var isEditingName by remember { mutableStateOf(false) }
 
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()) }
@@ -114,13 +100,17 @@ fun SessionSummaryScreen(
             mapType = MapType.SATELLITE)
     }
 
+
+
     LaunchedEffect(runSession) {
+
         runSession?.let {
-            sessionName = if (it.name.isBlank()) {
-                "Run on ${dateFormat.format(Date(it.startTimeMillis))}"
-            } else {
-                it.name
-            }
+            sessionNamePlaceholder = "${TimeUtils.getPeriodOfDay(it.startTimeMillis)} Session"
+
+            savedSessionName = it.name
+
+            sessionName = if (it.name.isNotBlank()) { it.name } else { sessionNamePlaceholder }
+
             isEditingName = false
         }
     }
@@ -130,28 +120,24 @@ fun SessionSummaryScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp)
             ) {
                 if (runSession == null) {
                     CircularProgressIndicator()
                     Text("Loading session data...")
                 } else {
-                        runSession?.let { session ->
-                            OutlinedTextField(
+                    runSession?.let { session ->
+                        Row {
+                            TextField(
                                 value = sessionName,
                                 onValueChange = { newValue ->
-                                    sessionName = newValue
-                                    val currentDisplayNameIfBlank = "Run on ${dateFormat.format(Date(session.startTimeMillis))}"
-                                    val isCurrentlyDefaultDisplay = session.name.isBlank() && sessionName == currentDisplayNameIfBlank
 
-                                    if (newValue.trim() != session.name.trim() || (isCurrentlyDefaultDisplay && !newValue.isBlank())) {
-                                        isEditingName = true
-                                    } else if (newValue.isBlank() && !session.name.isBlank()){
-                                        isEditingName = true
-                                    }
-                                    else {
-                                        isEditingName = false
-                                    }
+
+
+                                    isEditingName = savedSessionName != newValue.trim()
+
+                                    sessionName = newValue
+
+
                                 },
                                 label = { Text("Session Name") },
                                 singleLine = true,
@@ -170,194 +156,187 @@ fun SessionSummaryScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                        }
 
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.DateRange,
-                                    contentDescription = "Start Time",
-                                    tint = LocalContentColor.current, // Use current text color
-                                    modifier = Modifier.size(20.dp) // Adjust icon size as needed
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(dateFormat.format(Date(session.startTimeMillis)))
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Hourglass,
-                                    contentDescription = "Duration",
-                                    tint = LocalContentColor.current, // Use current text color
-                                    modifier = Modifier.size(20.dp) // Adjust icon size as needed
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Duration: ${TimeUtils.formatTime(session.totalDurationMillis)}")
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        if ( selectedLapsWithPoints.size <= 2) {
+                            val mapPoints = if (selectedLapsWithPoints.isNotEmpty()) {
+                                selectedLapsWithPoints.flatMap { it.locationPoints }
+                            } else {
+                                locationPoints
                             }
 
+                            if (mapPoints.isNotEmpty()) {
+                                Log.d("MapRender", "Map is being rendered with ${mapPoints.size} points.")
+                                val initialLatLng = LatLng(
+                                    mapPoints.first().latitude,
+                                    mapPoints.first().longitude
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(240.dp)
+                                ) {
+                                    GoogleMap(
+                                        modifier = Modifier.fillMaxSize(), // Make the map fill the Box
+                                        cameraPositionState = rememberCameraPositionState {
+                                            position = CameraPosition.fromLatLngZoom(initialLatLng, 15f)
+                                        },
+                                        properties = mapProperties
+                                    ) {
+                                        // ONLY place map elements (Polyline, Marker, etc.) here
+                                        if (selectedLapsWithPoints.size == 2) {
+                                            selectedLapsWithPoints.sortedBy { selectedLapData -> selectedLapData.isFastestOfSelected }.forEachIndexed { index, selectedLapData ->
+                                                val polylineColor = when {
+                                                    selectedLapData.isFastestOfSelected -> FastestLapPurple
+                                                    else -> Lap1Color
+                                                }
+                                                Polyline(
+                                                    points = selectedLapData.locationPoints.map { LatLng(it.latitude, it.longitude) },
+                                                    color = polylineColor,
+                                                    width = 8f
+                                                )
+                                            }
+                                        } else if (selectedLapsWithPoints.size == 1) {
+                                            val selectedLapData = selectedLapsWithPoints.first()
+                                            Polyline(
+                                                points = selectedLapData.locationPoints.map { LatLng(it.latitude, it.longitude) },
+                                                color = Lap1Color,
+                                                width = 8f
+                                            )
+                                        } else {
+                                            Polyline(
+                                                points = locationPoints.map { LatLng(it.latitude, it.longitude) },
+                                                color = Lap1Color,
+                                                width = 6f
+                                            )
+                                        }
+                                    }
+
+                                    // Now, place your UI elements (legends, text) OVER the map within the Box
+                                    if (selectedLapsWithPoints.size == 2) {
+                                        Column(
+                                            modifier = Modifier
+                                                .align(Alignment.TopStart) // Align to top-start of the Box
+                                                .padding(8.dp)
+                                                .background(Color.White.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
+                                                .padding(4.dp)
+                                        ) {
+                                            selectedLapsWithPoints.forEachIndexed { index, selectedLapData ->
+                                                val color = when {
+                                                    selectedLapData.isFastestOfSelected -> FastestLapPurple
+                                                    else -> Lap1Color
+                                                }
+                                                Text(
+                                                    text = "Lap ${selectedLapData.lap.lapNumber}: ${TimeUtils.formatTime(selectedLapData.lap.durationMillis)}",
+                                                    color = color,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    } else if (selectedLapsWithPoints.size == 1) {
+                                        val selectedLapData = selectedLapsWithPoints.first()
+                                        Text(
+                                            text = "Lap ${selectedLapData.lap.lapNumber}: ${TimeUtils.formatTime(selectedLapData.lap.durationMillis)}",
+                                            color = Lap1Color,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier
+                                                .align(Alignment.TopStart) // Align to top-start of the Box
+                                                .padding(8.dp)
+                                                .background(Color.White.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                                .padding(4.dp)
+                                        )
+                                    }
+                                }
+                            } else {
+                                Log.d("MapRender", "Map is NOT being rendered. mapPoints is empty.")
+                                Text("No location data available for this session or selected laps.",
+                                    modifier = Modifier.padding(top = 8.dp))
+                            }
+                        } else if (laps.isNotEmpty() && selectedLapsWithPoints.size > 2) {
+                            Text("You can select up to 2 laps for comparison.", color = MaterialTheme.colorScheme.error)
+                            Button(onClick = { summaryViewModel.clearLapSelection() }) {
+                                Text("Clear Selection")
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth(1f).padding(16.dp, 0.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                            SessionDataBlock("Practice", "🏁", "${session.lapCount} Laps")
+                            SessionDataBlock("Duration", "⏱", TimeUtils.formatTime(session.totalDurationMillis))
+                            SessionDataBlock("Avg. lap time", "⚡", TimeUtils.formatTime(session.avgLapTimeMillis))
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Laps:", style = MaterialTheme.typography.headlineSmall)
-
-                        Spacer(modifier = Modifier.weight(1f))
-                        Button(
-                            onClick = { summaryViewModel.clearLapSelection() },
-                            // Apply alpha based on whether laps are selected
-                            modifier = Modifier
-                                .alpha(if (selectedLapIds.isNotEmpty()) 1f else 0f)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp, 0.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Clear selected laps",
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                "Clear laps",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
-                    LazyColumn(modifier = Modifier.weight(1f)) {
-                        items(laps) { lap ->
-                            val isFastestOverall = lap.id == fastestLapId
-                            val isSelected = selectedLapIds.contains(lap.id)
-                            LapListItem(
-                                lap = lap,
-                                isFastestOverall = isFastestOverall,
-                                isSelected = isSelected,
-                                onSelectLap = {
-                                    summaryViewModel.toggleLapSelection(lap.id)
-                                }
-                            )
-                        }
-                    }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                            if(laps.isEmpty()){
+                                Text("No laps completed", style = MaterialTheme.typography.headlineSmall)
+                            } else {
+                                Text("Laps:", style = MaterialTheme.typography.headlineSmall)
 
-                    if (laps.isNotEmpty() && selectedLapsWithPoints.size <= 2) {
-                        val mapPoints = if (selectedLapsWithPoints.isNotEmpty()) {
-                            selectedLapsWithPoints.flatMap { it.locationPoints }
-                        } else {
-                            locationPoints
-                        }
-
-                        if (mapPoints.isNotEmpty()) {
-                            Log.d("MapRender", "Map is being rendered with ${mapPoints.size} points.")
-                            val initialLatLng = LatLng(
-                                mapPoints.first().latitude,
-                                mapPoints.first().longitude
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                            ) {
-                                GoogleMap(
-                                    modifier = Modifier.fillMaxSize(), // Make the map fill the Box
-                                    cameraPositionState = rememberCameraPositionState {
-                                        position = CameraPosition.fromLatLngZoom(initialLatLng, 15f)
-                                    },
-                                    properties = mapProperties
+                                Spacer(modifier = Modifier.weight(1f))
+                                Button(
+                                    onClick = { summaryViewModel.clearLapSelection() },
+                                    // Apply alpha based on whether laps are selected
+                                    modifier = Modifier
+                                        .alpha(if (selectedLapIds.isNotEmpty()) 1f else 0f)
                                 ) {
-                                    // ONLY place map elements (Polyline, Marker, etc.) here
-                                    if (selectedLapsWithPoints.size == 2) {
-                                        selectedLapsWithPoints.sortedBy { selectedLapData -> selectedLapData.isFastestOfSelected }.forEachIndexed { index, selectedLapData ->
-                                            val polylineColor = when {
-                                                selectedLapData.isFastestOfSelected -> FastestLapPurple
-                                                else -> Lap1Color
-                                            }
-                                            Polyline(
-                                                points = selectedLapData.locationPoints.map { LatLng(it.latitude, it.longitude) },
-                                                color = polylineColor,
-                                                width = 8f
-                                            )
-                                        }
-                                    } else if (selectedLapsWithPoints.size == 1) {
-                                        val selectedLapData = selectedLapsWithPoints.first()
-                                        Polyline(
-                                            points = selectedLapData.locationPoints.map { LatLng(it.latitude, it.longitude) },
-                                            color = Lap1Color,
-                                            width = 8f
-                                        )
-                                    } else {
-                                        Polyline(
-                                            points = locationPoints.map { LatLng(it.latitude, it.longitude) },
-                                            color = Lap1Color,
-                                            width = 6f
-                                        )
-                                    }
-                                }
-
-                                // Now, place your UI elements (legends, text) OVER the map within the Box
-                                if (selectedLapsWithPoints.size == 2) {
-                                    Column(
-                                        modifier = Modifier
-                                            .align(Alignment.TopStart) // Align to top-start of the Box
-                                            .padding(8.dp)
-                                            .background(Color.White.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
-                                            .padding(4.dp)
-                                    ) {
-                                        selectedLapsWithPoints.forEachIndexed { index, selectedLapData ->
-                                            val color = when {
-                                                selectedLapData.isFastestOfSelected -> FastestLapPurple
-                                                else -> Lap1Color
-                                            }
-                                            Text(
-                                                text = "Lap ${selectedLapData.lap.lapNumber}: ${TimeUtils.formatTime(selectedLapData.lap.durationMillis)}",
-                                                color = color,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                } else if (selectedLapsWithPoints.size == 1) {
-                                    val selectedLapData = selectedLapsWithPoints.first()
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Clear selected laps",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "Lap ${selectedLapData.lap.lapNumber}: ${TimeUtils.formatTime(selectedLapData.lap.durationMillis)}",
-                                        color = Lap1Color,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier
-                                            .align(Alignment.TopStart) // Align to top-start of the Box
-                                            .padding(8.dp)
-                                            .background(Color.White.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                                            .padding(4.dp)
+                                        "Clear laps",
+                                        style = MaterialTheme.typography.bodySmall
                                     )
                                 }
                             }
-                        } else {
-                            Log.d("MapRender", "Map is NOT being rendered. mapPoints is empty.")
-                            Text("No location data available for this session or selected laps.",
-                                modifier = Modifier.padding(top = 8.dp))
-                        }
-                    } else if (laps.isNotEmpty() && selectedLapsWithPoints.size > 2) {
-                        Text("You can select up to 2 laps for comparison.", color = MaterialTheme.colorScheme.error)
-                        Button(onClick = { summaryViewModel.clearLapSelection() }) {
-                            Text("Clear Selection")
-                        }
-                    }
 
-
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "GPS Points: ${locationPoints.size}",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Button(
-                            onClick = { navController.navigate("mainScreen") }) {
-                            Text("Go back",  style = MaterialTheme.typography.bodySmall)
+                        }
+                        LazyColumn(modifier = Modifier.weight(1f)) {
+                            items(laps) { lap ->
+                                val isFastestOverall = lap.id == fastestLapId
+                                val isSelected = selectedLapIds.contains(lap.id)
+                                LapListItem(
+                                    lap = lap,
+                                    isFastestOverall = isFastestOverall,
+                                    isSelected = isSelected,
+                                    onSelectLap = {
+                                        summaryViewModel.toggleLapSelection(lap.id)
+                                    }
+                                )
+                            }
                         }
 
+
+
+
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "GPS Points: ${locationPoints.size}",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = { navController.navigate("mainScreen") }) {
+                                Text("Go back",  style = MaterialTheme.typography.bodySmall)
+                            }
+
+                        }
                     }
                 }
             }

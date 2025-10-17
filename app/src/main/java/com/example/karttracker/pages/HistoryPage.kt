@@ -56,6 +56,7 @@ import androidx.navigation.NavController
 import coil3.compose.rememberAsyncImagePainter
 import com.example.karttracker.components.DefaultLayout
 import com.example.karttracker.components.HistoryViewModel
+import com.example.karttracker.components.Session.SessionDataBlock
 import com.example.karttracker.database.entity.RunSessionEntity
 import com.example.karttracker.utils.TimeUtils
 import java.text.SimpleDateFormat
@@ -264,18 +265,6 @@ fun SessionData(
     }
 }
 
-@Composable
-fun SessionDataBlock(title: String, prefix: String, data: String){
-    Column {
-        Text(title, style = MaterialTheme.typography.labelSmall)
-        Row (verticalAlignment = Alignment.CenterVertically) {
-            if(prefix.isNotBlank()){
-                Text(prefix, modifier = Modifier.padding(end = 4.dp), style = MaterialTheme.typography.bodySmall)
-            }
-            Text(data, style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
 
 
 @Preview(showBackground = true)
