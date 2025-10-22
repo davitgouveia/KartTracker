@@ -18,17 +18,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,17 +43,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.karttracker.components.DefaultLayout
 import com.example.karttracker.components.Session.SessionDataBlock
 import com.example.karttracker.components.SessionSummaryViewModel
 import com.example.karttracker.database.entity.LapEntity
-import com.example.karttracker.icons.Hourglass
 import com.example.karttracker.utils.TimeUtils
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -61,13 +62,13 @@ import com.google.maps.android.compose.MapType
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 val FastestLapPurple = Color(0xFF800080) // Standard F1 purple
 val Lap1Color = Color.Blue // Example color for the first selected lap
 val Lap2Color = Color.Red // Example color for the second selected lap
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionSummaryScreen(
     sessionId: Long,
@@ -116,15 +117,26 @@ fun SessionSummaryScreen(
     }
 
     MaterialTheme {
-        DefaultLayout(title = "Session Summary") {
+        if (runSession == null) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
             ) {
-                if (runSession == null) {
-                    CircularProgressIndicator()
-                    Text("Loading session data...")
-                } else {
+                CircularProgressIndicator()
+                Text("Loading session data...")
+            }
+        } else {
+            Scaffold(
+                topBar = {
+                    CustomTopBar(title = sessionName, backAction = { navController.navigate("mainScreen") })
+                }
+            ) { paddingValues ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .background(MaterialTheme.colorScheme.background)
+                ) {
                     runSession?.let { session ->
                         Row {
                             TextField(
@@ -220,7 +232,10 @@ fun SessionSummaryScreen(
                                             modifier = Modifier
                                                 .align(Alignment.TopStart) // Align to top-start of the Box
                                                 .padding(8.dp)
-                                                .background(Color.White.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
+                                                .background(
+                                                    Color.White.copy(alpha = 0.7f),
+                                                    RoundedCornerShape(4.dp)
+                                                )
                                                 .padding(4.dp)
                                         ) {
                                             selectedLapsWithPoints.forEachIndexed { index, selectedLapData ->
@@ -244,7 +259,10 @@ fun SessionSummaryScreen(
                                             modifier = Modifier
                                                 .align(Alignment.TopStart) // Align to top-start of the Box
                                                 .padding(8.dp)
-                                                .background(Color.White.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                                .background(
+                                                    Color.White.copy(alpha = 0.5f),
+                                                    RoundedCornerShape(4.dp)
+                                                )
                                                 .padding(4.dp)
                                         )
                                     }
@@ -263,7 +281,9 @@ fun SessionSummaryScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        Row(modifier = Modifier.fillMaxWidth(1f).padding(16.dp, 0.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(modifier = Modifier
+                            .fillMaxWidth(1f)
+                            .padding(16.dp, 0.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                             SessionDataBlock("Practice", "🏁", "${session.lapCount} Laps")
                             SessionDataBlock("Duration", "⏱", TimeUtils.formatTime(session.totalDurationMillis))
                             SessionDataBlock("Avg. lap time", "⚡", TimeUtils.formatTime(session.avgLapTimeMillis))
@@ -272,7 +292,9 @@ fun SessionSummaryScreen(
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp, 0.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp, 0.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
 
@@ -340,6 +362,38 @@ fun SessionSummaryScreen(
                     }
                 }
             }
+        }
+    }
+}
+@Preview
+@Composable
+fun CustomTopBar (
+    title: String = "Unknown",
+    backAction: () -> Unit = {},
+    menuAction: () -> Unit = {}
+){
+    Box(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(0.dp, 4.dp)) {
+
+        IconButton(
+            onClick = backAction,
+            modifier = Modifier.align(Alignment.CenterStart)
+        ) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+        }
+
+
+        Text(
+            text = title,
+            modifier = Modifier.align(Alignment.Center),
+            style = MaterialTheme.typography.titleMedium
+        )
+
+
+        IconButton(
+            onClick = menuAction,
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            Icon(Icons.Default.MoreVert, contentDescription = "More options")
         }
     }
 }
