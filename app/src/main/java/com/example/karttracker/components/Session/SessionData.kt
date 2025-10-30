@@ -11,8 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun SessionDataBlock(title: String, prefix: String, data: String){
-    Column {
+fun SessionDataBlock(title: String, prefix: String, data: String, modifier: Modifier = Modifier){
+    Column (modifier = modifier) {
         Text(title, style = MaterialTheme.typography.labelSmall)
         Row (verticalAlignment = Alignment.CenterVertically) {
             if(prefix.isNotBlank()){

@@ -15,7 +15,7 @@ import com.example.karttracker.pages.LapTrackerMapScreen
 import com.example.karttracker.pages.RADIUS_ARG
 import com.example.karttracker.pages.START_FINISH_LAT_ARG
 import com.example.karttracker.pages.START_FINISH_LNG_ARG
-import com.example.karttracker.pages.SessionSummaryScreen
+import com.example.karttracker.pages.SessionSummary.SessionSummaryScreen
 
 
 @Composable

@@ -1,6 +1,8 @@
 package com.example.karttracker.utils
 
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Locale
 import java.util.TimeZone
 
 object TimeUtils {
@@ -13,6 +15,10 @@ object TimeUtils {
         val minutes = (millis / (1000 * 60)) % 60
         val milliseconds = (millis % 1000) / 10
         return String.format("%02d:%02d.%02d", minutes, seconds, milliseconds)
+    }
+
+    fun formatDateTime(millis: Long): String {
+        return SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(java.util.Date(millis))
     }
 
     fun getPeriodOfDay(millis: Long): String {
